@@ -24,6 +24,14 @@ The script verifies that the IPsec, xl2tpd, PPP credential files and services
 were created. A successful local check does not prove that an external firewall
 or cloud security group permits UDP ports 500 and 4500.
 
+When both a Windows client and the VPN server are behind NAT (common with cloud
+servers using a private interface plus a public IP), run this command in an
+Administrator Command Prompt on the Windows client and then restart Windows:
+
+```cmd
+reg add HKLM\SYSTEM\CurrentControlSet\Services\PolicyAgent /v AssumeUDPEncapsulationContextOnSendRule /t REG_DWORD /d 2 /f
+```
+
 Some cloud-optimized kernels omit the `ppp_generic` module required by L2TP. In
 that case, install the distribution's standard kernel, reboot into it, and run
 the installer again. On Debian this kernel is provided by `linux-image-amd64`.
