@@ -148,6 +148,8 @@ grep -Fq "\"$VPN_USER_INPUT\" l2tpd \"$VPN_PASSWORD_INPUT\"" /etc/ppp/chap-secre
   || die 'L2TP user was not written correctly'
 grep -Fq "$VPN_IPSEC_PSK" /etc/ipsec.secrets || die 'IPsec PSK was not written correctly'
 grep -Eq '^[[:space:]]*conn l2tp-psk' /etc/ipsec.conf || die 'L2TP/IPsec connection is missing'
+ss -H -lun 'sport = :500' | grep -q . || die 'IPsec is not listening on UDP 500'
+ss -H -lun 'sport = :4500' | grep -q . || die 'IPsec NAT-T is not listening on UDP 4500'
 
 if command -v systemctl >/dev/null 2>&1; then
   systemctl is-active --quiet ipsec || die 'IPsec service is not active'
@@ -156,6 +158,18 @@ fi
 
 server_ip=$(curl --fail --silent --show-error --max-time 10 --proto '=https' --tlsv1.2 https://api.ipify.org || true)
 [[ -n "$server_ip" ]] || server_ip='<server-public-ip>'
+private_ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+nat_notice=''
+if [[ -n "$private_ip" && "$private_ip" != "$server_ip" ]]; then
+  nat_notice=$(cat <<'EOF'
+
+This server is behind cloud NAT. If a Windows client is also behind NAT, run
+the following in an Administrator Command Prompt, then restart Windows:
+
+reg add HKLM\SYSTEM\CurrentControlSet\Services\PolicyAgent /v AssumeUDPEncapsulationContextOnSendRule /t REG_DWORD /d 2 /f
+EOF
+)
+fi
 
 cat <<EOF
 
@@ -168,4 +182,5 @@ Password: $VPN_PASSWORD_INPUT
 IPsec PSK: $VPN_IPSEC_PSK
 
 Required firewall ports: UDP 500 and UDP 4500
+$nat_notice
 EOF
