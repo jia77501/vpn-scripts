@@ -57,12 +57,32 @@ done
 
 [[ $EUID -eq 0 ]] || die 'run this installer as root'
 
+install_prerequisites() {
+  printf 'Installing required system packages...\n'
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+      ca-certificates curl unzip tar iproute2 openssl
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y ca-certificates curl unzip tar iproute openssl
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y ca-certificates curl unzip tar iproute openssl
+  elif command -v apk >/dev/null 2>&1; then
+    apk add --no-cache ca-certificates curl unzip tar iproute2 openssl
+  else
+    die 'unsupported package manager; apt-get, dnf, yum, or apk is required'
+  fi
+}
+
 if [[ -x /usr/local/x-ui/x-ui ]] || systemctl cat x-ui.service >/dev/null 2>&1; then
   die 'x-ui is installed and manages its own Xray process; refusing to create a conflicting installation'
 fi
 if [[ -x /usr/local/bin/xray ]] || systemctl cat xray.service >/dev/null 2>&1; then
   die 'Xray is already installed; refusing to overwrite its port or UUID'
 fi
+
+install_prerequisites
 
 if [[ -t 0 ]]; then
   if [[ -z "$VMESS_PORT_INPUT" ]]; then
@@ -81,6 +101,7 @@ fi
 ((VMESS_PORT_INPUT >= 1 && VMESS_PORT_INPUT <= 65535)) || die 'port must be between 1 and 65535'
 
 command -v curl >/dev/null 2>&1 || die 'curl is required'
+command -v unzip >/dev/null 2>&1 || die 'unzip is required'
 command -v base64 >/dev/null 2>&1 || die 'base64 is required'
 command -v systemctl >/dev/null 2>&1 || die 'systemd is required'
 
